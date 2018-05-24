@@ -10,7 +10,7 @@ Institute of Computer Science
 Foundation for Research and Technology - Hellas
 Heraklion, Crete, Greece
 
-## GENERAL
+## General
 
 This is sba, a copylefted C/C++ implementation of generic bundle adjustment
 based on the sparse Levenberg-Marquardt algorithm. sba can support a wide
@@ -45,24 +45,36 @@ the above TR:
     note={Available from \verb+http://www.ics.forth.gr/~lourakis/sba+}
 }
 
-## FILES
+## Files
 
-- sba_levmar.c: SBA expert driver routines
-- sba_levmar_wrap.c: simple wrappers around the routines in sba_levmar.c
-- sba_lapack.c: LAPACK-based linear system solvers (LU, QR, SVD, Cholesky, Bunch-Kaufman)
-- sba_crsm.c: CRS sparse matrix manipulation routines
-- sba_chkjac.c: routines for verifying the correctness of user-supplied jacobians
-- sba.h: Function prototypes & related data structures
-- demo/*: Euclidean BA demo; see demo/README.txt for more details
-- matlab/*: sba MEX-file interface; see matlab/README.txt for more details
-- utils/*: Various utilities; see utils/README.txt for more details
+- _sba_levmar.c_: SBA expert driver routines
+- _sba_levmar_wrap.c_: simple wrappers around the routines in sba_levmar.c
+- _sba_lapack.c_: LAPACK-based linear system solvers (LU, QR, SVD, Cholesky, Bunch-Kaufman)
+- _sba_crsm.c_: CRS sparse matrix manipulation routines
+- _sba_chkjac.c_: routines for verifying the correctness of user-supplied jacobians
+- _sba.h_: Function prototypes & related data structures
+- _demo/*_: Euclidean BA demo; see demo/README.txt for more details
+- _matlab/*_: sba MEX-file interface; see matlab/README.txt for more details
+- _utils/*_: Various utilities; see utils/README.txt for more details
 
-## COMPILING
+## Compiling
 
- - On a Linux/Unix system, typing "make" will build both sba and the demo program.
+The library compilation settings can be generated using CMake.
+The options are:
+- _BUILD_SHARED_LIBS_, default OFF
+- _BUILD_DEMO_, default ON
+- _USE_MKL_, default OFF, tells CMake to use Intel MKL libraries. MKL environment should be already loaded for this to work.
 
- - Under Windows and if Visual C is installed & configured for command line use,
-   type "nmake /f Makefile.vc" in a cmd window to build sba and the demo program.
-   In case of trouble, read the comments on top of Makefile.vc
+Options can be set on the command line using `-D<option_name>=<ON or OFF>`.
+
+### Basic compilation
+From the library root folder:
+
+```
+mkdir build
+cd build
+cmake ..
+make
+```
 
 Send your comments/bug reports to lourakis@ics.forth.gr
