@@ -13,18 +13,18 @@ set(SOURCES src/sba_levmar.c src/sba_levmar_wrap.c
 set(PUBLIC_HEADERS src/sba.h)
 
 # Add targets
-# if (BUILD_SHARED_LIBS)
-#     add_library(sba SHARED ${SOURCES})
-# else()
-#     add_library(sba STATIC ${SOURCES}) 
-# endif()
-add_library(sba STATIC ${SOURCES}) 
+if (BUILD_SHARED_LIBS)
+    add_library(sba SHARED ${SOURCES})
+else()
+    add_library(sba STATIC ${SOURCES})
+endif()
 target_include_directories(sba PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/src)
 
 # Link BLAS/LAPACK
 if(USE_MKL)
+    set(BLA_STATIC 1 CACHE BOOL "MKL static linking") # I couldn't figure out how to link MKL DLLs, so linking is static.
     find_package(MKL REQUIRED)
-    target_link_libraries(sba PRIVATE mkl)
+    target_link_libraries(sba PUBLIC mkl)
 else()
     find_package(BLAS REQUIRED)
     find_package(LAPACK REQUIRED)

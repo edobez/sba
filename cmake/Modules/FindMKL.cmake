@@ -314,16 +314,36 @@ add_library(mkl INTERFACE)
 list(LENGTH MKL_LIBRARIES MKL_LIBS_NUM)
 math(EXPR MKL_LIBS_NUM "${MKL_LIBS_NUM} - 1")
 
-foreach(i RANGE ${MKL_LIBS_NUM})
+if(BLA_STATIC)
+    foreach(i RANGE ${MKL_LIBS_NUM})
+        list(GET MKL_LIBRARIES ${i} CURRENT_LIB)
+        list(GET MKL_LIBRARIES_PATHS ${i} CURRENT_LIB_PATH)
+        message(STATUS "${CURRENT_LIB}  ${CURRENT_LIB_PATH}")
+
+        add_library(${CURRENT_LIB} STATIC IMPORTED)
+        set_target_properties(${CURRENT_LIB} PROPERTIES
+            IMPORTED_LOCATION ${CURRENT_LIB_PATH}
+            INTERFACE_INCLUDE_DIRECTORIES ${MKL_INCLUDE_DIR}
+        )
+        target_link_libraries(mkl INTERFACE ${CURRENT_LIB})
+
+    endforeach()
+else()
+    message(WARNING "MKL dinamyc linking still not working under Windows")
+    foreach(i RANGE ${MKL_LIBS_NUM})
     list(GET MKL_LIBRARIES ${i} CURRENT_LIB)
     list(GET MKL_LIBRARIES_PATHS ${i} CURRENT_LIB_PATH)
     message(STATUS "${CURRENT_LIB}  ${CURRENT_LIB_PATH}")
 
-    add_library(${CURRENT_LIB} STATIC IMPORTED)
+    add_library(${CURRENT_LIB} SHARED IMPORTED)
     set_target_properties(${CURRENT_LIB} PROPERTIES
-        IMPORTED_LOCATION ${CURRENT_LIB_PATH}
+        IMPORTED_IMPLIB ${CURRENT_LIB_PATH}
         INTERFACE_INCLUDE_DIRECTORIES ${MKL_INCLUDE_DIR}
     )
     target_link_libraries(mkl INTERFACE ${CURRENT_LIB})
 
-endforeach()
+    endforeach()
+endif()
+
+
+
