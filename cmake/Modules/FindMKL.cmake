@@ -46,6 +46,7 @@
 #  MKL_ROOT_DIR     -  path to the MKL base directory
 #  MKL_INCLUDE_DIR  -  the MKL include directory
 #  MKL_LIBRARIES    -  MKL libraries
+#  MKL_LIBRARIES_PATHS    -  MKL libraries paths
 #  MKL_LIBRARY_DIR  -  MKL library dir (for dlls!)
 #
 #
@@ -204,17 +205,21 @@ else()
         RESULT_VARIABLE COMMAND_WORKED
         TIMEOUT 2 ERROR_QUIET
     )
-
-    set(MKL_LIBRARIES)
+    message(STATUS "MKL_LIBS = " ${MKL_LIBS})
 
     if (NOT ${COMMAND_WORKED} EQUAL 0)
-        message(FATAL_ERROR "Cannot find the MKL libraries correctly. Please check your MKL input variables and mkl_link_tool. The command executed was:\n ${MKL_LINK_TOOL_COMMAND}.")
+    message(FATAL_ERROR "Cannot find the MKL libraries correctly. Please check your MKL input variables and mkl_link_tool. The command executed was:\n ${MKL_LINK_TOOL_COMMAND}.")
     endif()
-
+    
     set(MKL_LIBRARY_DIR)
+    set(MKL_LIBRARIES)
+    set(MKL_LIBRARIES_PATHS)
 
     if (WIN32)
-        set(MKL_LIBRARY_DIR "${MKL_ROOT_DIR}/lib/${MKL_LIB_DIR}/" "${MKL_ROOT_DIR}/../compiler/lib/${MKL_LIB_DIR}")
+        set(MKL_LIBRARY_DIR 
+            "${MKL_ROOT_DIR}/lib/${MKL_LIB_DIR}/" 
+            "${MKL_ROOT_DIR}/../compiler/lib/${MKL_LIB_DIR}"
+        )
 
         # remove unwanted break
         string(REGEX REPLACE "\n" "" MKL_LIBS ${MKL_LIBS})
@@ -222,13 +227,15 @@ else()
         # get the list of libs
         separate_arguments(MKL_LIBS)
         foreach(i ${MKL_LIBS})
-            find_library(FULLPATH_LIB ${i} PATHS "${MKL_LIBRARY_DIR}")
+            find_library(FULLPATH_LIB NAMES ${i} PATHS ${MKL_LIBRARY_DIR})
 
-            if (FULLPATH_LIB)
-                list(APPEND MKL_LIBRARIES ${FULLPATH_LIB})
-            elseif(i)
-                list(APPEND MKL_LIBRARIES ${i})
+            if (NOT FULLPATH_LIB)
+                message(FATAL ERROR "Library {i} not found in paths {MKL_LIBRARY_DIR}")
             endif()
+
+            list(APPEND MKL_LIBRARIES_PATHS ${FULLPATH_LIB})
+            list(APPEND MKL_LIBRARIES ${i})
+
             unset(FULLPATH_LIB CACHE)
         endforeach()
 
@@ -236,14 +243,14 @@ else()
         # remove unwanted break
         string(REGEX REPLACE "\n" "" MKL_LIBS ${MKL_LIBS})
         if (MKL_LINK_TOOL_COMMAND MATCHES "static")
-            string(REPLACE "$(MKLROOT)" "${MKL_ROOT_DIR}" MKL_LIBRARIES ${MKL_LIBS})
+            string(REPLACE "$(MKLROOT)" "${MKL_ROOT_DIR}" MKL_LIBRARIES_PATHS ${MKL_LIBS})
             # hack for lin with libiomp5.a
             if (APPLE)
-                string(REPLACE "-liomp5" "${MKL_ROOT_DIR}/../compiler/lib/libiomp5.a" MKL_LIBRARIES ${MKL_LIBRARIES})
+                string(REPLACE "-liomp5" "${MKL_ROOT_DIR}/../compiler/lib/libiomp5.a" MKL_LIBRARIES_PATHS ${MKL_LIBRARIES_PATHS})
             else()
-                string(REPLACE "-liomp5" "${MKL_ROOT_DIR}/../compiler/lib/${MKL_LIB_DIR}/libiomp5.a" MKL_LIBRARIES ${MKL_LIBRARIES})
+                string(REPLACE "-liomp5" "${MKL_ROOT_DIR}/../compiler/lib/${MKL_LIB_DIR}/libiomp5.a" MKL_LIBRARIES_PATHS ${MKL_LIBRARIES_PATHS})
             endif()
-            separate_arguments(MKL_LIBRARIES)
+            separate_arguments(MKL_LIBRARIES_PATHS)
         else() # dynamic or sdl
             # get the lib dirs
             string(REGEX REPLACE "^.*-L[^/]+([^\ ]+).*" "${MKL_ROOT_DIR}\\1" INTEL_LIB_DIR ${MKL_LIBS})
@@ -269,9 +276,9 @@ else()
                 find_library(FULLPATH_LIB ${i} PATHS "${MKL_LIBRARY_DIR}")
 
                 if (FULLPATH_LIB)
-                    list(APPEND MKL_LIBRARIES ${FULLPATH_LIB})
+                    list(APPEND MKL_LIBRARIES_PATHS ${FULLPATH_LIB})
                 elseif(i)
-                    list(APPEND MKL_LIBRARIES ${i})
+                    list(APPEND MKL_LIBRARIES_PATHS ${i})
                 endif()
                 unset(FULLPATH_LIB CACHE)
             endforeach()
@@ -286,15 +293,16 @@ else()
     if (CMAKE_FIND_DEBUG_MODE)
         message(STATUS "Exectuted command: \n${MKL_LINK_TOOL_COMMAND}")
         message(STATUS "Found MKL_LIBRARIES:\n${MKL_LIBRARIES} ")
+        message(STATUS "Found MKL_LIBRARIES_PATHS:\n${MKL_LIBRARIES_PATHS} ")
         message(STATUS "Found MKL_DEFINITIONS:\n${MKL_DEFINITIONS} ")
         message(STATUS "Found MKL_LIBRARY_DIR:\n${MKL_LIBRARY_DIR} ")
         message(STATUS "Found MKL_INCLUDE_DIR:\n${MKL_INCLUDE_DIR} ")
     endif()
 
     include(FindPackageHandleStandardArgs)
-    find_package_handle_standard_args(MKL DEFAULT_MSG MKL_INCLUDE_DIR MKL_LIBRARIES)
+    find_package_handle_standard_args(MKL DEFAULT_MSG MKL_INCLUDE_DIR MKL_LIBRARIES_PATHS)
 
-    mark_as_advanced(MKL_INCLUDE_DIR MKL_LIBRARIES MKL_DEFINITIONS MKL_ROOT_DIR)
+    mark_as_advanced(MKL_INCLUDE_DIR MKL_LIBRARIES_PATHS MKL_DEFINITIONS MKL_ROOT_DIR)
 endif()
 
 
@@ -303,11 +311,19 @@ endif()
 add_library(mkl INTERFACE)
 
 # Create imported target for each library and then link it to the global target
-foreach(LIB IN LISTS MKL_LIBRARIES)
-    add_library(${LIB} STATIC IMPORTED)
-    set_target_properties(${LIB} PROPERTIES
-        IMPORTED_LOCATION "${MKL_ROOT_DIR}/lib/${MKL_LIB_DIR}/${LIB}"
-        INTERFACE_INCLUDE_DIRECTORIES "${MKL_INCLUDE_DIR}"
+list(LENGTH MKL_LIBRARIES MKL_LIBS_NUM)
+math(EXPR MKL_LIBS_NUM "${MKL_LIBS_NUM} - 1")
+
+foreach(i RANGE ${MKL_LIBS_NUM})
+    list(GET MKL_LIBRARIES ${i} CURRENT_LIB)
+    list(GET MKL_LIBRARIES_PATHS ${i} CURRENT_LIB_PATH)
+    message(STATUS "${CURRENT_LIB}  ${CURRENT_LIB_PATH}")
+
+    add_library(${CURRENT_LIB} STATIC IMPORTED)
+    set_target_properties(${CURRENT_LIB} PROPERTIES
+        IMPORTED_LOCATION ${CURRENT_LIB_PATH}
+        INTERFACE_INCLUDE_DIRECTORIES ${MKL_INCLUDE_DIR}
     )
-    target_link_libraries(mkl INTERFACE ${LIB})
+    target_link_libraries(mkl INTERFACE ${CURRENT_LIB})
+
 endforeach()
