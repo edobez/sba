@@ -58,9 +58,8 @@
 #
 #    find_package(MKL REQUIRED)
 #    if (MKL_FOUND)
-#        include_directories(${MKL_INCLUDE_DIR})
-#        # and for each of your dependent executable/library targets:
-#        target_link_libraries(<YourTarget> ${MKL_LIBRARIES})
+#        # for each of your dependent executable/library targets:
+#        target_link_libraries(<YourTarget> mkl)
 #    endif()
 
 
@@ -75,6 +74,7 @@
 # Joan MASSICH (joan.massich-vall.AT.inria.fr).
 # Alexandre GRAMFORT (Alexandre.Gramfort.AT.inria.fr)
 # Théodore PAPADOPOULO (papadop.AT.inria.fr)
+# Edoardo BEZZECCHERI (e.bezzeccheri@gmail.com)
 
 
 set(CMAKE_FIND_DEBUG_MODE 1)
@@ -86,7 +86,6 @@ unset(MSVC)
 find_path(MKL_ROOT_DIR NAMES include/mkl_cblas.h PATHS $ENV{MKLROOT})
 
 # Convert symlinks to real paths
-
 get_filename_component(MKL_ROOT_DIR ${MKL_ROOT_DIR} REALPATH)
 
 if (NOT MKL_ROOT_DIR)
@@ -297,3 +296,18 @@ else()
 
     mark_as_advanced(MKL_INCLUDE_DIR MKL_LIBRARIES MKL_DEFINITIONS MKL_ROOT_DIR)
 endif()
+
+
+## Define targets
+# Create global 'mkl' target
+add_library(mkl INTERFACE)
+
+# Create imported target for each library and then link it to the global target
+foreach(LIB IN LISTS MKL_LIBRARIES)
+    add_library(${LIB} STATIC IMPORTED)
+    set_target_properties(${LIB} PROPERTIES
+        IMPORTED_LOCATION "${MKL_ROOT_DIR}/lib/${MKL_LIB_DIR}/${LIB}"
+        INTERFACE_INCLUDE_DIRECTORIES "${MKL_INCLUDE_DIR}"
+    )
+    target_link_libraries(mkl INTERFACE ${LIB})
+endforeach()
